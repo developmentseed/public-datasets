@@ -185,11 +185,13 @@ def main(scene_list, wrs2_grid):
 
     # Open Scene list and use generator to limit memory usage
     with open(scene_list, "r") as f:
-        lines = (line for line in f)
-        list_line = (s.rstrip().split(",") for s in lines)
+        list_line = (s.rstrip().split(",") for s in f)
+
+        # Retrieve the first line
         cols = next(list_line)
 
         for line in list_line:
+            # Create a dict using the column names extracted earlier
             value = dict(zip(cols, line))
 
             # LC08_L1GT_070235_20180607_20180608_01_RT
@@ -236,11 +238,12 @@ def main(scene_list, wrs2_grid):
                 "bbox": feature_bounds(geom),
                 "geometry": geom,
                 "properties": {
-                    "datetime": value["acquisitionDate"],
+                    "datetime": value["acquisitionDate"],  # TODO fix format
                     "platform": f"landsat-{sat_number}",
                     "instruments": instruments,
                     "gsd": 30,
                     "view:off_nadir": 0,
+                    # TODO
                     # https://forum.developer.parrot.com/t/suns-elevation-and-azimuth-calculation/5573
                     #     "view:sun_azimuth":  # can we calculate this ?
                     #     "view:sun_elevation": # can we calculate this ?
