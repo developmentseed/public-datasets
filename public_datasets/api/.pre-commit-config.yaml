@@ -18,10 +18,7 @@ repos:
       - id: flake8
         language_version: python3.7
         args: [
-            # E501 let black handle all line length decisions
-            # W503 black conflicts with "line break before operator" rule
-            # E203 black conflicts with "whitespace before ':'" rule
-            "--ignore=E501,W503,E203",
+            "--ignore=D203",
           ]
 
   - repo: https://github.com/PyCQA/pydocstyle
@@ -41,4 +38,4 @@ repos:
     hooks:
       - id: mypy
         language_version: python3.7
-        args: ["--no-strict-optional", "--ignore-missing-imports"]
+        args: ["--no-strict-optional", "--ignore-missing-imports", "--namespace-packages"]

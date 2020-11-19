@@ -13,7 +13,7 @@ extra_reqs = {
 setup(
     name="public-datasets-api",
     version="0.1.0",
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     packages=find_namespace_packages(),
     install_requires=inst_reqs,
     extras_require=extra_reqs,
