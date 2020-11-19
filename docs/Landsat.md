@@ -28,7 +28,8 @@ $ cat WRS2_ascending.geojson WRS2_descending.geojson > WRS2_daynight.geojson
 3. Create items
 
 ```
-$ python aws_pds.py scene_list.csv WRS2_daynight.geojson
+$ pip install public_datasets.feeder.landsat.aws
+$ python -m public_datasets.feeder.landsat.aws scene_list.csv WRS2_daynight.geojson
 ```
 
 ### Google Cloud
