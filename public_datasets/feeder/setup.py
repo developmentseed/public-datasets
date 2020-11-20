@@ -3,7 +3,7 @@
 from setuptools import find_namespace_packages, setup
 
 # Runtime requirements.
-inst_reqs = ["rasterio", "stac-pydantic"]
+inst_reqs = ["rasterio", "stac-pydantic", "suncalc"]
 
 extra_reqs = {
     "test": ["pytest", "pytest-cov"],

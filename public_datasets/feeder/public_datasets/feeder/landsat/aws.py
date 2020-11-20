@@ -1,9 +1,14 @@
 """Create Items for AWS Landsat PDS."""
 
 import json
+import math
 
 import click
+from datetime import datetime, timezone
 from rasterio.features import bounds as feature_bounds
+
+from suncalc import SunCalc
+
 
 landsat_assets = {
     "ANG": {
@@ -228,6 +233,13 @@ def main(scene_list, wrs2_grid):
 
             path = int(value["path"])
             row = int(value["row"])
+            date_info = datetime.strptime(value["acquisitionDate"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+            center_lat = (value["min_lat"] + value["max_lat"]) / 2
+            center_lon = (value["min_lon"] + value["max_lon"]) / 2
+
+            pos = SunCalc().get_position(date_info, center_lat, center_lon)
+            sun_azimuth = math.degrees(pos["azimuth"] + math.pi) % 360
+            sun_elevation = math.degrees(pos["altitude"])
 
             stac_item = {
                 "type": "Feature",
@@ -238,15 +250,12 @@ def main(scene_list, wrs2_grid):
                 "bbox": feature_bounds(geom),
                 "geometry": geom,
                 "properties": {
-                    "datetime": value["acquisitionDate"],  # TODO fix format
+                    "datetime": date_info.strftime('%Y-%m-%dT%H:%M:%SZ'),
                     "platform": f"landsat-{sat_number}",
                     "instruments": instruments,
                     "gsd": 30,
-                    "view:off_nadir": 0,
-                    # TODO
-                    # https://forum.developer.parrot.com/t/suns-elevation-and-azimuth-calculation/5573
-                    #     "view:sun_azimuth":  # can we calculate this ?
-                    #     "view:sun_elevation": # can we calculate this ?
+                    "view:sun_azimuth":  sun_azimuth,
+                    "view:sun_elevation": sun_elevation,
                     "landsat:row": row,
                     "landsat:path": path,
                     "landsat:sceneid": value["entityId"],
