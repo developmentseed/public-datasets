@@ -2,195 +2,209 @@
 
 import json
 import math
+from copy import deepcopy
 
 import click
 from datetime import datetime, timezone
 from rasterio.features import bounds as feature_bounds
 
-from suncalc import SunCalc
-
-sun = SunCalc()
-
-landsat_assets = {
-    "ANG": {
-        "href": "{prefix}_ANG.txt",
-        "title": "Angle coefficients file",
-        "type": "text/plain",
-    },
-    "B1": {
-        "href": "{prefix}_B1.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B1",
-                "common_name": "coastal",
-                "center_wavelength": 0.44,
-                "full_width_half_max": 0.02,
-            }
-        ],
-        "title": "Band 1 (coastal)",
-    },
-    "B2": {
-        "href": "{prefix}_B2.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B2",
-                "common_name": "blue",
-                "center_wavelength": 0.48,
-                "full_width_half_max": 0.06,
-            }
-        ],
-        "title": "Band 2 (blue)",
-    },
-    "B3": {
-        "href": "{prefix}_B3.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B3",
-                "common_name": "green",
-                "center_wavelength": 0.56,
-                "full_width_half_max": 0.06,
-            }
-        ],
-        "title": "Band 3 (green)",
-    },
-    "B4": {
-        "href": "{prefix}_B4.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B4",
-                "common_name": "red",
-                "center_wavelength": 0.65,
-                "full_width_half_max": 0.04,
-            }
-        ],
-        "title": "Band 4 (red)",
-    },
-    "B5": {
-        "href": "{prefix}_B5.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B5",
-                "common_name": "nir",
-                "center_wavelength": 0.86,
-                "full_width_half_max": 0.03,
-            }
-        ],
-        "title": "Band 5 (nir)",
-    },
-    "B6": {
-        "href": "{prefix}_B6.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B6",
-                "common_name": "swir16",
-                "center_wavelength": 1.6,
-                "full_width_half_max": 0.08,
-            }
-        ],
-        "title": "Band 6 (swir16)",
-    },
-    "B7": {
-        "href": "{prefix}_B7.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B7",
-                "common_name": "swir22",
-                "center_wavelength": 2.2,
-                "full_width_half_max": 0.2,
-            }
-        ],
-        "title": "Band 7 (swir22)",
-    },
-    "B8": {
-        "href": "{prefix}_B8.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B8",
-                "common_name": "pan",
-                "center_wavelength": 0.59,
-                "full_width_half_max": 0.18,
-            }
-        ],
-        "title": "Band 8 (pan)",
-    },
-    "B9": {
-        "href": "{prefix}_B9.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B9",
-                "common_name": "cirrus",
-                "center_wavelength": 1.37,
-                "full_width_half_max": 0.02,
-            }
-        ],
-        "title": "Band 9 (cirrus)",
-    },
-    "B10": {
-        "href": "{prefix}_B10.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B10",
-                "common_name": "lwir11",
-                "center_wavelength": 10.9,
-                "full_width_half_max": 0.8,
-            }
-        ],
-        "title": "Band 10 (lwir)",
-    },
-    "B11": {
-        "href": "{prefix}_B11.TIF",
-        "type": "image/tiff; application=geotiff",
-        "eo:bands": [
-            {
-                "name": "B11",
-                "common_name": "lwir12",
-                "center_wavelength": 12,
-                "full_width_half_max": 1,
-            }
-        ],
-        "title": "Band 11 (lwir)",
-    },
-    "BQA": {
-        "href": "{prefix}_BQA.TIF",
-        "title": "Band quality data",
-        "type": "image/tiff; application=geotiff",
-    },
-    "MTL": {
-        "href": "{prefix}_MTL.txt",
-        "title": "original metadata file",
-        "type": "text/plain",
-    },
-    "thumbnail": {
-        "href": "{prefix}_thumb_large.jpg",
-        "title": "Thumbnail image",
-        "type": "image/jpeg",
-    },
-}
+from suncalc import get_position
 
 
-@click.command()
-@click.argument("scene_list", type=str)
-@click.argument("wrs2_grid", type=str)
-def main(scene_list, wrs2_grid):
-    """Create Landsat STAC Items."""
+def create_assets(prefix: str):
+    """Create assets object."""
+    return {
+        "ANG": {
+            "href": f"{prefix}_ANG.txt",
+            "title": "ANG Metadata",
+            "type": "text/plain",
+            "roles": [
+                "metadata"
+            ],
+        },
+        "B1": {
+            "href": f"{prefix}_B1.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B1",
+                    "common_name": "coastal",
+                    "center_wavelength": 0.44,
+                    "full_width_half_max": 0.02,
+                }
+            ],
+            "title": "Band 1 (coastal)",
+        },
+        "B2": {
+            "href": f"{prefix}_B2.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B2",
+                    "common_name": "blue",
+                    "center_wavelength": 0.48,
+                    "full_width_half_max": 0.06,
+                }
+            ],
+            "title": "Band 2 (blue)",
+        },
+        "B3": {
+            "href": f"{prefix}_B3.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B3",
+                    "common_name": "green",
+                    "center_wavelength": 0.56,
+                    "full_width_half_max": 0.06,
+                }
+            ],
+            "title": "Band 3 (green)",
+        },
+        "B4": {
+            "href": f"{prefix}_B4.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B4",
+                    "common_name": "red",
+                    "center_wavelength": 0.65,
+                    "full_width_half_max": 0.04,
+                }
+            ],
+            "title": "Band 4 (red)",
+        },
+        "B5": {
+            "href": f"{prefix}_B5.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B5",
+                    "common_name": "nir",
+                    "center_wavelength": 0.86,
+                    "full_width_half_max": 0.03,
+                }
+            ],
+            "title": "Band 5 (nir)",
+        },
+        "B6": {
+            "href": f"{prefix}_B6.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B6",
+                    "common_name": "swir16",
+                    "center_wavelength": 1.6,
+                    "full_width_half_max": 0.08,
+                }
+            ],
+            "title": "Band 6 (swir16)",
+        },
+        "B7": {
+            "href": f"{prefix}_B7.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B7",
+                    "common_name": "swir22",
+                    "center_wavelength": 2.2,
+                    "full_width_half_max": 0.2,
+                }
+            ],
+            "title": "Band 7 (swir22)",
+        },
+        "B8": {
+            "href": f"{prefix}_B8.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B8",
+                    "common_name": "pan",
+                    "center_wavelength": 0.59,
+                    "full_width_half_max": 0.18,
+                }
+            ],
+            "gsd": 15,
+            "title": "Band 8 (pan)",
+        },
+        "B9": {
+            "href": f"{prefix}_B9.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B9",
+                    "common_name": "cirrus",
+                    "center_wavelength": 1.37,
+                    "full_width_half_max": 0.02,
+                }
+            ],
+            "title": "Band 9 (cirrus)",
+        },
+        "B10": {
+            "href": f"{prefix}_B10.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B10",
+                    "common_name": "lwir11",
+                    "center_wavelength": 10.9,
+                    "full_width_half_max": 0.8,
+                }
+            ],
+            "gsd": 100,
+            "title": "Band 10 (lwir)",
+        },
+        "B11": {
+            "href": f"{prefix}_B11.TIF",
+            "type": "image/tiff; application=geotiff",
+            "eo:bands": [
+                {
+                    "name": "B11",
+                    "common_name": "lwir12",
+                    "center_wavelength": 12,
+                    "full_width_half_max": 1,
+                }
+            ],
+            "gsd": 100,
+            "title": "Band 11 (lwir)",
+        },
+        "BQA": {
+            "href": f"{prefix}_BQA.TIF",
+            "title": "Quality Band",
+            "type": "image/tiff; application=geotiff",
+            "roles": [
+                "quality"
+            ],
+        },
+        "MTL": {
+            "href": f"{prefix}_MTL.txt",
+            "title": "MTL Metadata",
+            "type": "text/plain",
+            "roles": [
+                "metadata"
+            ],
+        },
+        "thumbnail": {
+            "href": f"{prefix}_thumb_large.jpg",
+            "title": "Thumbnail",
+            "type": "image/jpeg",
+            "roles": [
+                "thumbnail"
+            ],
+        },
+    }
+
+
+def create_stac_items(scenes, grid):
+    """Create STAC Items from scene_list and WRS2 grid."""
     # Read WRS2 Grid
-    with open(wrs2_grid, "r") as f:
+    with open(grid, "r") as f:
         wrs_grid = [json.loads(line) for line in f.readlines()]
         pr = [x["properties"]["PR"] for x in wrs_grid]
         wrs_grid = dict(zip(pr, wrs_grid))
 
     # Open Scene list and use generator to limit memory usage
-    with open(scene_list, "r") as f:
+    with open(scenes, "r") as f:
         list_line = (s.rstrip().split(",") for s in f)
 
         # Retrieve the first line
@@ -236,12 +250,16 @@ def main(scene_list, wrs2_grid):
             row = int(value["row"])
 
             # we remove the milliseconds because it's missing for some entry
-            d = value["acquisitionDate"].split(".")[0]
-            date_info = datetime.strptime(d, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            d = value["acquisitionDate"].split(".")
+            if len(d) == 1:
+                date_info = datetime.strptime(value["acquisitionDate"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            else:
+                date_info = datetime.strptime(value["acquisitionDate"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+
             center_lat = (float(value["min_lat"]) + float(value["max_lat"])) / 2
             center_lon = (float(value["min_lon"]) + float(value["max_lon"])) / 2
 
-            pos = sun.get_position(date_info, center_lat, center_lon)
+            pos = get_position(date_info, center_lon, center_lat)
             sun_azimuth = math.degrees(pos["azimuth"] + math.pi) % 360
             sun_elevation = math.degrees(pos["altitude"])
 
@@ -254,33 +272,44 @@ def main(scene_list, wrs2_grid):
                 "bbox": feature_bounds(geom),
                 "geometry": geom,
                 "properties": {
-                    "datetime": date_info.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                    "platform": f"landsat-{sat_number}",
+                    "datetime": date_info.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    "platform": f"LANDSAT_{sat_number}",
                     "instruments": instruments,
                     "gsd": 30,
                     "view:sun_azimuth":  sun_azimuth,
                     "view:sun_elevation": sun_elevation,
                     "landsat:row": row,
                     "landsat:path": path,
-                    "landsat:sceneid": value["entityId"],
+                    "landsat:scene_id": value["entityId"],
                     "landsat:day_or_night": scene_time.lower(),
                     "landsat:processing_level": value["processingLevel"],
-                    "landsat:processing_category": collection_category,
+                    "landsat:collection_category": collection_category,
                     "landsat:collection_number": collection_number,
                     "eo:cloud_cover": float(value["cloudCover"]),
                 },
-                "links": [],
+                "links": [
+                    {
+                        "title": "AWS Public Dataset page for Landsat-8",
+                        "rel": "about",
+                        "type": "text/html",
+                        "href": "https://registry.opendata.aws/landsat-8"
+                    }
+                ],
             }
 
-            prefix = f"https://landsat-pds.s3.amazonaws.com/c{int(collection_number)}/L{sat_number}/{path}/{row}/{product_id}/{product_id}"
+            prefix = f"https://landsat-pds.s3.us-west-2.amazonaws.com/c{int(collection_number)}/L{sat_number}/{path:03}/{row:03}/{product_id}/{product_id}"
+            stac_item["assets"] = create_assets(prefix)
+            yield stac_item
 
-            assets = {}
-            for asset, info in landsat_assets.copy().items():
-                info["href"] = info["href"].format(prefix=prefix)
-                assets[asset] = info
 
-            stac_item["assets"] = assets
-            # Next ?
+@click.command()
+@click.argument("scene_list", type=str)
+@click.argument("wrs2_grid", type=str)
+def main(scene_list, wrs2_grid):
+    """Create Landsat STAC Items."""
+    for item in create_stac_items(scene_list, wrs2_grid):
+        # to something here
+        pass
 
 
 if __name__ == "__main__":
