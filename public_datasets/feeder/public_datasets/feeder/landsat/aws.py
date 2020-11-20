@@ -196,11 +196,7 @@ def main(scene_list, wrs2_grid):
         # Retrieve the first line
         cols = next(list_line)
 
-        ii = 0
         for line in list_line:
-            ii += 1
-            print(ii, end='\r')
-
             # Create a dict using the column names extracted earlier
             value = dict(zip(cols, line))
 
