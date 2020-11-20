@@ -9,6 +9,7 @@ from rasterio.features import bounds as feature_bounds
 
 from suncalc import SunCalc
 
+sun = SunCalc()
 
 landsat_assets = {
     "ANG": {
@@ -195,7 +196,11 @@ def main(scene_list, wrs2_grid):
         # Retrieve the first line
         cols = next(list_line)
 
+        ii = 0
         for line in list_line:
+            ii += 1
+            print(ii, end='\r')
+
             # Create a dict using the column names extracted earlier
             value = dict(zip(cols, line))
 
@@ -233,11 +238,14 @@ def main(scene_list, wrs2_grid):
 
             path = int(value["path"])
             row = int(value["row"])
-            date_info = datetime.strptime(value["acquisitionDate"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
-            center_lat = (value["min_lat"] + value["max_lat"]) / 2
-            center_lon = (value["min_lon"] + value["max_lon"]) / 2
 
-            pos = SunCalc().get_position(date_info, center_lat, center_lon)
+            # we remove the milliseconds because it's missing for some entry
+            d = value["acquisitionDate"].split(".")[0]
+            date_info = datetime.strptime(d, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            center_lat = (float(value["min_lat"]) + float(value["max_lat"])) / 2
+            center_lon = (float(value["min_lon"]) + float(value["max_lon"])) / 2
+
+            pos = sun.get_position(date_info, center_lat, center_lon)
             sun_azimuth = math.degrees(pos["azimuth"] + math.pi) % 360
             sun_elevation = math.degrees(pos["altitude"])
 
@@ -276,10 +284,6 @@ def main(scene_list, wrs2_grid):
                 assets[asset] = info
 
             stac_item["assets"] = assets
-
-            # Validation ?
-            # item = Item(**stac_item)  # noqa
-
             # Next ?
 
 
