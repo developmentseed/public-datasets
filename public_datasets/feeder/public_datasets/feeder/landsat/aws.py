@@ -2,13 +2,15 @@
 
 import json
 import math
-from copy import deepcopy
+import csv
 
 import click
 from datetime import datetime, timezone
 from rasterio.features import bounds as feature_bounds
 
 from suncalc import get_position
+
+from public_datasets.feeder.utils import _reduce_precision
 
 
 def create_assets(prefix: str):
@@ -18,9 +20,7 @@ def create_assets(prefix: str):
             "href": f"{prefix}_ANG.txt",
             "title": "ANG Metadata",
             "type": "text/plain",
-            "roles": [
-                "metadata"
-            ],
+            "roles": ["metadata"],
         },
         "B1": {
             "href": f"{prefix}_B1.TIF",
@@ -172,25 +172,19 @@ def create_assets(prefix: str):
             "href": f"{prefix}_BQA.TIF",
             "title": "Quality Band",
             "type": "image/tiff; application=geotiff",
-            "roles": [
-                "quality"
-            ],
+            "roles": ["quality"],
         },
         "MTL": {
             "href": f"{prefix}_MTL.txt",
             "title": "MTL Metadata",
             "type": "text/plain",
-            "roles": [
-                "metadata"
-            ],
+            "roles": ["metadata"],
         },
         "thumbnail": {
             "href": f"{prefix}_thumb_large.jpg",
             "title": "Thumbnail",
             "type": "image/jpeg",
-            "roles": [
-                "thumbnail"
-            ],
+            "roles": ["thumbnail"],
         },
     }
 
@@ -202,18 +196,12 @@ def create_stac_items(scenes, grid):
         wrs_grid = [json.loads(line) for line in f.readlines()]
         pr = [x["properties"]["PR"] for x in wrs_grid]
         wrs_grid = dict(zip(pr, wrs_grid))
+        for pr in wrs_grid.keys():
+            wrs_grid[pr]["geometry"] = _reduce_precision(wrs_grid[pr]["geometry"])
 
-    # Open Scene list and use generator to limit memory usage
     with open(scenes, "r") as f:
-        list_line = (s.rstrip().split(",") for s in f)
-
-        # Retrieve the first line
-        cols = next(list_line)
-
-        for line in list_line:
-            # Create a dict using the column names extracted earlier
-            value = dict(zip(cols, line))
-
+        reader = csv.DictReader(f)
+        for value in reader:
             # LC08_L1GT_070235_20180607_20180608_01_RT
             product_id = value["productId"]
             productid_info = product_id.split("_")
@@ -252,9 +240,13 @@ def create_stac_items(scenes, grid):
             # we remove the milliseconds because it's missing for some entry
             d = value["acquisitionDate"].split(".")
             if len(d) == 1:
-                date_info = datetime.strptime(value["acquisitionDate"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                date_info = datetime.strptime(
+                    value["acquisitionDate"], "%Y-%m-%d %H:%M:%S"
+                ).replace(tzinfo=timezone.utc)
             else:
-                date_info = datetime.strptime(value["acquisitionDate"], "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
+                date_info = datetime.strptime(
+                    value["acquisitionDate"], "%Y-%m-%d %H:%M:%S.%f"
+                ).replace(tzinfo=timezone.utc)
 
             center_lat = (float(value["min_lat"]) + float(value["max_lat"])) / 2
             center_lon = (float(value["min_lon"]) + float(value["max_lon"])) / 2
@@ -272,12 +264,12 @@ def create_stac_items(scenes, grid):
                 "bbox": feature_bounds(geom),
                 "geometry": geom,
                 "properties": {
-                    "datetime": date_info.strftime('%Y-%m-%dT%H:%M:%S.%fZ'),
+                    "datetime": date_info.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
                     "platform": f"LANDSAT_{sat_number}",
                     "instruments": instruments,
                     "gsd": 30,
-                    "view:sun_azimuth":  sun_azimuth,
-                    "view:sun_elevation": sun_elevation,
+                    "view:sun_azimuth": round(sun_azimuth, 6),
+                    "view:sun_elevation": round(sun_elevation, 6),
                     "landsat:row": row,
                     "landsat:path": path,
                     "landsat:scene_id": value["entityId"],
@@ -292,7 +284,7 @@ def create_stac_items(scenes, grid):
                         "title": "AWS Public Dataset page for Landsat-8",
                         "rel": "about",
                         "type": "text/html",
-                        "href": "https://registry.opendata.aws/landsat-8"
+                        "href": "https://registry.opendata.aws/landsat-8",
                     }
                 ],
             }

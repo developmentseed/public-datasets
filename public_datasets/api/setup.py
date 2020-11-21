@@ -5,9 +5,7 @@ from setuptools import find_namespace_packages, setup
 # Runtime requirements.
 inst_reqs = ["arturo-stac-api"]
 
-extra_reqs = {
-    "test": ["pytest", "pytest-cov", "pytest-asyncio", "requests"],
-}
+extra_reqs = {"test": ["pytest", "pytest-cov", "pytest-asyncio", "requests"]}
 
 
 setup(
