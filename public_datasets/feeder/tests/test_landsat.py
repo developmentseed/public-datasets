@@ -46,8 +46,7 @@ def test_item_creation():
     items = {}
     for stac_item in aws_pds.create_stac_items(scenes, grid):
         model = item_model_factory(stac_item)
-        # This is blocked by https://github.com/arturo-ai/stac-pydantic/pull/39
-        # assert model(**stac_item)
+        assert model(**stac_item)
 
         items[stac_item["id"]] = stac_item
 
