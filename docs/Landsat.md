@@ -1,7 +1,7 @@
 
 # Landsat
 
-### Amazon Web Services
+### Amazon Web Services - Collection 1
 
 1. Get List of scenes on AWS
 
@@ -28,8 +28,8 @@ $ cat WRS2_ascending.geojson WRS2_descending.geojson > WRS2_daynight.geojson
 3. Create items
 
 ```
-$ pip install public_datasets.feeder.landsat.aws
-$ python -m public_datasets.feeder.landsat.aws scene_list.csv WRS2_daynight.geojson
+$ pip install public_datasets/extensions public_datasets/feeder
+$ python -m public_datasets.feeder.aws.landsat_pds_collection1 data/landsat/scene_list.csv data/landsat/WRS2_daynight.geojson --collection 1 --level 1 --host http://0.0.0.0:8082
 ```
 
 ### Google Cloud
