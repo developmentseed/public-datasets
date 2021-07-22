@@ -1,14 +1,13 @@
 """test landsat"""
 
-import os
 import json
 import math
+import os
 
-from pydantic import BaseModel
-from stac_pydantic import Item, Extensions
-from stac_pydantic import item_model_factory
+from stac_pydantic import Extensions, item_model_factory
 
-from public_datasets.feeder.landsat import aws as aws_pds
+from public_datasets.extensions.landsat import LandsatExtension
+from public_datasets.feeder.aws import landsat_pds_collection1
 
 data = os.path.join(os.path.dirname(__file__), "fixtures")
 
@@ -18,33 +17,15 @@ scenes = os.path.join(data, "landsat_scenes.csv")
 with open(os.path.join(data, "landsat8_item.json"), "r") as f:
     e84_landsat_stac_item = json.load(f)
 
-
-class LandsatExtension(BaseModel):
-    """Landsat STAC Extension."""
-
-    row: int
-    path: int
-    scene_id: str
-    day_or_night: str
-    processing_level: str
-    collection_category: str
-    collection_number: str
-
-    # Setup extension namespace in model config
-    class Config:
-        """landsat extension config."""
-
-        allow_population_by_fieldname = True
-        alias_generator = lambda field_name: f"landsat:{field_name}"  # noqa
-
-
 Extensions.register("landsat", LandsatExtension)
 
 
 def test_item_creation():
     """test Item creation."""
     items = {}
-    for stac_item in aws_pds.create_stac_items(scenes, grid):
+    for stac_item in landsat_pds_collection1.create_stac_items(
+        scenes, grid, collection=1, level=1
+    ):
         model = item_model_factory(stac_item)
         assert model(**stac_item)
 
@@ -53,7 +34,6 @@ def test_item_creation():
     product_id = e84_landsat_stac_item["id"]
     ds_landsat_stac_item = items[product_id]
 
-    assert e84_landsat_stac_item["stac_version"] == ds_landsat_stac_item["stac_version"]
     # Note:
     # e84 type for the GeoTIFF is set to `image/tiff; application=geotiff; profile=cloud-optimized` in the original file, which is not true
     # we set it to `image/tiff; application=geotiff`

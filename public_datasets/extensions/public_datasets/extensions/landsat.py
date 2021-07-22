@@ -1,7 +1,6 @@
-"""Register STAC Extension."""
+"""STAC Extension."""
 
 from pydantic import BaseModel
-from stac_pydantic import Extensions
 
 
 class LandsatExtension(BaseModel):
@@ -9,12 +8,11 @@ class LandsatExtension(BaseModel):
 
     row: int
     path: int
-    sceneid: str
+    scene_id: str
     collection_number: str
     collection_category: str
     day_or_night: str
     processing_level: str
-    processing_category: str
 
     # Setup extension namespace in model config
     class Config:
@@ -22,6 +20,3 @@ class LandsatExtension(BaseModel):
 
         allow_population_by_fieldname = True
         alias_generator = lambda field_name: f"landsat:{field_name}"  # noqa
-
-
-Extensions.register("landsat", LandsatExtension)

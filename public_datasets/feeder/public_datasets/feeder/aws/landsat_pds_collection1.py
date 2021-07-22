@@ -1,16 +1,20 @@
 """Create Items for AWS Landsat PDS."""
 
+import csv
 import json
 import math
-import csv
+from datetime import datetime, timezone
 
 import click
-from datetime import datetime, timezone
+import requests
 from rasterio.features import bounds as feature_bounds
-
+from stac_pydantic import Extensions, Item
 from suncalc import get_position
 
+from public_datasets.extensions.landsat import LandsatExtension
 from public_datasets.feeder.utils import _reduce_precision
+
+Extensions.register("landsat", LandsatExtension)
 
 
 def create_assets(prefix: str):
@@ -189,17 +193,21 @@ def create_assets(prefix: str):
     }
 
 
-def create_stac_items(scenes, grid):
+def create_stac_items(
+    scenes_list: str, grid_geom: str, collection: int = 1, level: int = 1
+):
     """Create STAC Items from scene_list and WRS2 grid."""
-    # Read WRS2 Grid
-    with open(grid, "r") as f:
-        wrs_grid = [json.loads(line) for line in f.readlines()]
-        pr = [x["properties"]["PR"] for x in wrs_grid]
-        wrs_grid = dict(zip(pr, wrs_grid))
+    # Read WRS2 Grid geometries
+    with open(grid_geom, "r") as f:
+        wrs_grid_list = [json.loads(line) for line in f.readlines()]
+        pr = [x["properties"]["PR"] for x in wrs_grid_list]
+
+        wrs_grid = dict(zip(pr, wrs_grid_list))
         for pr in wrs_grid.keys():
             wrs_grid[pr]["geometry"] = _reduce_precision(wrs_grid[pr]["geometry"])
 
-    with open(scenes, "r") as f:
+    # Open list of scenes
+    with open(scenes_list, "r") as f:
         reader = csv.DictReader(f)
         for value in reader:
             # LC08_L1GT_070235_20180607_20180608_01_RT
@@ -211,11 +219,12 @@ def create_stac_items(scenes, grid):
             sat_number = int(productid_info[0][2:4])
             sensor = productid_info[0][1]
 
-            # L1GT
-            level = int(value["processingLevel"][1])
+            _level = int(value["processingLevel"][1])
+            if _level != level:
+                continue
 
-            # landsat-8-c1l1
-            collection = f"landsat-{sat_number}-c{int(collection_number)}l{level}"
+            if int(collection_number) != collection:
+                continue
 
             grid_cell = wrs_grid[path_row]
             scene_time = grid_cell["properties"]["PERIOD"]
@@ -255,12 +264,13 @@ def create_stac_items(scenes, grid):
             sun_azimuth = math.degrees(pos["azimuth"] + math.pi) % 360
             sun_elevation = math.degrees(pos["altitude"])
 
+            collection_name = f"aws-landsat-c{collection}l{level}"
+
             stac_item = {
                 "type": "Feature",
-                "stac_version": "1.0.0-beta.2",
                 "stac_extensions": ["eo", "landsat", "view"],
                 "id": product_id,
-                "collection": collection,
+                "collection": collection_name,
                 "bbox": feature_bounds(geom),
                 "geometry": geom,
                 "properties": {
@@ -297,11 +307,46 @@ def create_stac_items(scenes, grid):
 @click.command()
 @click.argument("scene_list", type=str)
 @click.argument("wrs2_grid", type=str)
-def main(scene_list, wrs2_grid):
+@click.option("--collection", type=int, required=True)
+@click.option("--level", type=int, required=True)
+@click.option("--host", type=str, required=True)
+def main(scene_list, wrs2_grid, collection, level, host):
     """Create Landsat STAC Items."""
-    for item in create_stac_items(scene_list, wrs2_grid):
-        # to something here
-        pass
+    r = requests.get(f"{host}/collections")
+    if r.status_code not in (200, 409):
+        r.raise_for_status()
+    db_collections = [col.get("id") for col in r.json()]
+
+    collection_name = f"aws-landsat-c{collection}l{level}"
+
+    # Create Collection
+    if collection_name not in db_collections:
+        collection_body = {
+            "id": collection_name,
+            "description": "AWS Landsat-pds collection.",
+            "license": "public-domain",
+            "links": [],
+            "extent": {
+                "spatial": {"bbox": [[-180.0, -90.0, 180.0, 90.0]]},
+                "temporal": {"interval": [["1975-01-01T00:00:00Z", "null"]]},
+            },
+        }
+        r = requests.post(f"{host}/collections", json=collection_body)
+        if r.status_code not in (200, 409):
+            r.raise_for_status()
+
+    # Create and POST items
+    for item in create_stac_items(
+        scene_list, wrs2_grid, collection=collection, level=level
+    ):
+        # do something here
+        stac_item = Item(**item)
+        r = requests.post(
+            f"{host}/collections/{collection_name}/items",
+            json=stac_item.dict(exclude_none=True),
+        )
+        if r.status_code not in (200, 409):
+            r.raise_for_status()
 
 
 if __name__ == "__main__":
