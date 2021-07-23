@@ -314,7 +314,7 @@ def main(scene_list, wrs2_grid, collection, level):
     for item in create_stac_items(
         scene_list, wrs2_grid, collection=collection, level=level
     ):
-        click.echo(Item(**item).dict(exclude_none=True))
+        click.echo(Item(**item).json(exclude_none=True))
 
 
 if __name__ == "__main__":
