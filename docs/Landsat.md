@@ -28,8 +28,14 @@ $ cat WRS2_ascending.geojson WRS2_descending.geojson > WRS2_daynight.geojson
 3. Create items
 
 ```
+# Install dependencies
 $ pip install public_datasets/extensions public_datasets/feeder
-$ python -m public_datasets.feeder.aws.landsat_pds_collection1 data/landsat/scene_list.csv data/landsat/WRS2_daynight.geojson --collection 1 --level 1 --host http://0.0.0.0:8082
+
+# Create NewLine delimited JSON (ndjson)
+$ python -m public_datasets.stac.aws.landsat_pds_collection1 data/landsat/scene_list.csv data/landsat/WRS2_daynight.geojson --collection 1 --level 1 > aws-landsat-c1l1.json
+
+# Load items in the database
+see: https://github.com/stac-utils/pgstac#bulk-data-loading
 ```
 
 ### Google Cloud

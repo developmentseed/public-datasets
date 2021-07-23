@@ -21,10 +21,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install numpy pytest pytest-cov requests
-          python -m pip install public_datasets/extensions public_datasets/feeder
+          python -m pip install public_datasets/extensions public_datasets/stac
 
-      - name: Run Test (feeder)
-        run: python -m pytest public_datasets/feeder/tests/ --cov public_datasets.feeder -vv -s --cov-report xml --cov-report term-missing
+      - name: Run Test (stac)
+        run: python -m pytest public_datasets/stac/tests/ --cov public_datasets.stac -vv -s --cov-report xml --cov-report term-missing
 
       - name: Upload Results
         if: success()
