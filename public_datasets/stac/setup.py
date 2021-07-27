@@ -5,9 +5,8 @@ from setuptools import find_namespace_packages, setup
 # Runtime requirements.
 inst_reqs = [
     "rasterio",
-    "stac-pydantic==1.3.8",
+    "stac-pydantic~=2.0",
     "suncalc",
-    "public-datasets.extensions",
 ]
 
 extra_reqs = {"test": ["pytest", "pytest-cov"]}

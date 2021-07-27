@@ -33,10 +33,53 @@ $ pip install public_datasets/extensions public_datasets/feeder
 
 # Create NewLine delimited JSON (ndjson)
 $ python -m public_datasets.stac.aws.landsat_pds_collection1 data/landsat/scene_list.csv data/landsat/WRS2_daynight.geojson --collection 1 --level 1 > aws-landsat-c1l1.json
-
-# Load items in the database
-see: https://github.com/stac-utils/pgstac#bulk-data-loading
 ```
+
+4. Create a collection
+
+see: https://github.com/stac-utils/pgstac#bulk-data-loading
+
+```json
+// content of aws-landsat-c1l1_collection.json
+{
+    "id": "aws-landsat-c1l1",
+    "description": "Landsat Data Collection 1, Level1 stored on AWS PDS.",
+    "stac_version": "1.0.0",
+    "license": "public-domain",
+    "links": [],
+    "extent": {
+        "spatial": {
+            "bbox": [
+                [
+                    -180.0,
+                    -90.0,
+                    180.0,
+                    90.0
+                ]
+            ]
+        },
+        "temporal": {
+            "interval": [
+                [
+                    "2013-03-18T00:00:00Z",
+                    "null"
+                ]
+            ]
+        }
+    }
+}
+```
+
+```
+$ pypgstac load collections aws-landsat-c1l1_collection.json --dsn postgresql://username:password@localhost:5439/postgis
+```
+
+5. Load the items
+
+```
+$ pypgstac load items aws-landsat-c1l1.json --dsn postgresql://username:password@localhost:5439/postgis
+```
+
 
 ### Google Cloud
 

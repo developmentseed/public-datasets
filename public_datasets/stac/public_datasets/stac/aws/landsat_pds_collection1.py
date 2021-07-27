@@ -7,13 +7,14 @@ from datetime import datetime, timezone
 
 import click
 from rasterio.features import bounds as feature_bounds
-from stac_pydantic import Extensions, Item
+from stac_pydantic import Item
 from suncalc import get_position
 
-from public_datasets.extensions.landsat import LandsatExtension
 from public_datasets.stac.utils import _reduce_precision
 
-Extensions.register("landsat", LandsatExtension)
+eo_extension = "https://stac-extensions.github.io/eo/v1.0.0/schema.json"
+landsat_extension = "https://landsat.usgs.gov/stac/landsat-extension/v1.1.0/schema.json"
+view_extension = "https://stac-extensions.github.io/view/v1.0.0/schema.json"
 
 
 def create_assets(prefix: str):
@@ -267,7 +268,7 @@ def create_stac_items(
 
             stac_item = {
                 "type": "Feature",
-                "stac_extensions": ["eo", "landsat", "view"],
+                "stac_extensions": [eo_extension, landsat_extension, view_extension],
                 "id": product_id,
                 "collection": collection_name,
                 "bbox": feature_bounds(geom),
@@ -279,13 +280,15 @@ def create_stac_items(
                     "gsd": 30,
                     "view:sun_azimuth": round(sun_azimuth, 6),
                     "view:sun_elevation": round(sun_elevation, 6),
-                    "landsat:row": row,
-                    "landsat:path": path,
+                    "landsat:wrs_type": 2,
+                    "landsat:wrs_row": row,
+                    "landsat:wrs_path": path,
                     "landsat:scene_id": value["entityId"],
                     "landsat:day_or_night": scene_time.lower(),
                     "landsat:processing_level": value["processingLevel"],
                     "landsat:collection_category": collection_category,
                     "landsat:collection_number": collection_number,
+                    "landsat:cloud_cover_land": float(value["cloudCover"]),
                     "eo:cloud_cover": float(value["cloudCover"]),
                 },
                 "links": [

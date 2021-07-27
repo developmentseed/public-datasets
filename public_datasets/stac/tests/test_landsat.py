@@ -4,9 +4,8 @@ import json
 import math
 import os
 
-from stac_pydantic import Extensions, item_model_factory
+from stac_pydantic import Item
 
-from public_datasets.extensions.landsat import LandsatExtension
 from public_datasets.stac.aws import landsat_pds_collection1
 
 data = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -17,8 +16,6 @@ scenes = os.path.join(data, "landsat_scenes.csv")
 with open(os.path.join(data, "landsat8_item.json"), "r") as f:
     e84_landsat_stac_item = json.load(f)
 
-Extensions.register("landsat", LandsatExtension)
-
 
 def test_item_creation():
     """test Item creation."""
@@ -26,8 +23,7 @@ def test_item_creation():
     for stac_item in landsat_pds_collection1.create_stac_items(
         scenes, grid, collection=1, level=1
     ):
-        model = item_model_factory(stac_item)
-        assert model(**stac_item)
+        assert Item(**stac_item)
 
         items[stac_item["id"]] = stac_item
 
